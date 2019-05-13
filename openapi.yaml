@@ -5,7 +5,197 @@ info:
   description: API for an "alternative" to Canvas.
 
 paths:
+  /users:
+    post:
+      summary: Create a new User.
+      description: >
+        Create and store a new application User with specified data and adds it to the application's database.  Only an authenticated User with 'admin' role can create users with the 'admin' or 'instructor' roles.
+      operationId: createUser
+      tags:
+        - Users
+      requestBody:
+        required: true
+        description: A User object.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: New User successfully added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    oneOf:
+                      - type: integer
+                      - type: string
+                    description: >
+                      Unique ID of the created User.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
+                    example: "123"
+        '400':
+          description: >
+            The request body was either not present or did not contain a valid User object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/login:
+    post:
+      summary: Log in a User.
+      description: >
+        Authenticate a specific User with their email address and password.
+      operationId: authenticateUser
+      tags:
+        - Users
+      requestBody:
+        required: true
+        description: >
+          Email address and plain-text password for the User being authenticated.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+            example:
+              email: jdoe@oregonstate.edu
+              password: hunter2
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: >
+                      A JWT authentication token.
+                    example: aaaaaaaa.bbbbbbbb.cccccccc
+        '400':
+          description: >
+            The request body was either not present or did not contain all of the required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: >
+            The specified credentials were invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: >
+            An internal server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: >
+          Unique ID of a User.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
+        schema:
+          oneOf:
+            - type: integer
+            - type: string
+        example: "123"
+        required: true
+
+    get:
+      summary: Fetch data about a specific User.
+      description: >
+        Returns information about the specified User.  If the User has the 'instructor' role, the response should include a list of the IDs of the Courses the User teaches (i.e. Courses whose `instructorId` field matches the ID of this User).  If the User has the 'student' role, the response should include a list of the IDs of the Courses the User is enrolled in.  Only an authenticated User whose ID matches the ID of the requested User can fetch this information.
+      operationId: getUserById
+      tags:
+        - Users
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '403':
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Specified Course `id` not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /courses:
+    get:
+      summary: Fetch the list of all Courses.
+      description: >
+        Returns the list of all Courses.  This list should be paginated.  The Courses returned should not contain the list of students in the Course or the list of Assignments for the Course.
+      operationId: getAllCourses
+      tags:
+        - Courses
+      parameters:
+        - name: page
+          in: query
+          description: >
+            Page of Courses to fetch.
+          schema:
+            type: integer
+            example: 3
+            default: 1
+        - name: subject
+          in: query
+          description: >
+            Fetch only Courses with the specified subject code.
+          schema:
+            type: string
+            example: "CS"
+        - name: number
+          in: query
+          description: >
+            Fetch only Courses with the specified course number.
+          schema:
+            type: string
+            example: "493"
+        - name: term
+          in: query
+          description: >
+            Fetch only Courses in the specified academic term.
+          schema:
+            type: string
+            example: "sp19"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  submissions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Course'
+
     post:
       summary: Create a new course.
       description: >
@@ -36,13 +226,15 @@ paths:
                       Unique ID of the created Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
                     example: "123"
         '400':
-          description: The request body was either not present or did not contain a valid Course object.
+          description: >
+            The request body was either not present or did not contain a valid Course object.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -52,7 +244,8 @@ paths:
     parameters:
       - name: id
         in: path
-        description: Unique ID of a Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
+        description: >
+          Unique ID of a Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
         schema:
           oneOf:
             - type: integer
@@ -100,13 +293,15 @@ paths:
         '200':
           description: Success
         '400':
-          description: The request body was either not present or did not contain any fields related to Course objects.
+          description: >
+            The request body was either not present or did not contain any fields related to Course objects.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -129,7 +324,8 @@ paths:
         '204':
           description: Success
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -145,7 +341,8 @@ paths:
     parameters:
       - name: id
         in: path
-        description: Unique ID of a Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
+        description: >
+          Unique ID of a Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
         schema:
           oneOf:
             - type: integer
@@ -176,7 +373,8 @@ paths:
                         - type: string
                     example: [ "123", "456" ]
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -224,13 +422,15 @@ paths:
         '200':
           description: Success
         '400':
-          description: The request body was either not present or did not contain the fields described above.
+          description: >
+            The request body was either not present or did not contain the fields described above.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -246,7 +446,8 @@ paths:
     parameters:
       - name: id
         in: path
-        description: Unique ID of a Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
+        description: >
+          Unique ID of a Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
         schema:
           oneOf:
             - type: integer
@@ -256,7 +457,7 @@ paths:
     get:
       summary: Fetch a CSV file containing list of the students enrolled in the Course.
       description: >
-        Returns a CSV file containing information about all of the students currently enrolled in the Course, including names, IDs, and email addresses.  Only an authenticated User with 'admin' role or an authenticated 'instructor' User whose ID matches the `instructorId` of the Course can fetch the courseRoster.
+        Returns a CSV file containing information about all of the students currently enrolled in the Course, including names, IDs, and email addresses.  Only an authenticated User with 'admin' role or an authenticated 'instructor' User whose ID matches the `instructorId` of the Course can fetch the course roster.
       operationId: getRosterByCourseId
       tags:
         - Courses
@@ -272,7 +473,8 @@ paths:
                   123,"Jane Doe",doej@oregonstate.edu
                   ...
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -288,7 +490,8 @@ paths:
     parameters:
       - name: id
         in: path
-        description: Unique ID of a Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
+        description: >
+          Unique ID of a Course.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
         schema:
           oneOf:
             - type: integer
@@ -356,13 +559,15 @@ paths:
                       Unique ID of the created Assignment.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
                     example: "123"
         '400':
-          description: The request body was either not present or did not contain a valid Assignment object.
+          description: >
+            The request body was either not present or did not contain a valid Assignment object.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -372,7 +577,8 @@ paths:
     parameters:
       - name: id
         in: path
-        description: Unique ID of an Assignment.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
+        description: >
+          Unique ID of an Assignment.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
         schema:
           oneOf:
             - type: integer
@@ -420,13 +626,15 @@ paths:
         '200':
           description: Success
         '400':
-          description: The request body was either not present or did not contain any fields related to Assignment objects.
+          description: >
+            The request body was either not present or did not contain any fields related to Assignment objects.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -441,7 +649,7 @@ paths:
     delete:
       summary: Remove a specific Assignment from the database.
       description: >
-        Completely removes the data for the specified Assignment, including all submissions.  Only an authenticated User with 'admin' role or an authenticated 'instructor' User whose ID matches the `instructorId` of the Course corresponding to the Assignment's `courseId` can update an Assignment.
+        Completely removes the data for the specified Assignment, including all submissions.  Only an authenticated User with 'admin' role or an authenticated 'instructor' User whose ID matches the `instructorId` of the Course corresponding to the Assignment's `courseId` can delete an Assignment.
       operationId: removeAssignmentsById
       tags:
         - Assignments
@@ -449,7 +657,8 @@ paths:
         '204':
           description: Success
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -477,7 +686,7 @@ paths:
     get:
       summary: Fetch the list of all Submissions for an Assignment.
       description: >
-        Returns the list of all Submissions for an Assignment.  This list should be paginated.  Only an authenticated User with 'admin' role or an authenticated 'instructor' User whose ID matches the `instructorId` of the Course corresponding to the Assignment's `courseId` can update an Assignment.
+        Returns the list of all Submissions for an Assignment.  This list should be paginated.  Only an authenticated User with 'admin' role or an authenticated 'instructor' User whose ID matches the `instructorId` of the Course corresponding to the Assignment's `courseId` can fetch the Submissions for an Assignment.
       operationId: getSubmissionsByAssignmentId
       tags:
         - Assignments
@@ -512,7 +721,8 @@ paths:
                     items:
                       $ref: '#/components/schemas/Submission'
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
@@ -554,118 +764,21 @@ paths:
                       Unique ID of the created Submission.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
                     example: "123"
         '400':
-          description: The request body was either not present or did not contain a valid Submission object.
+          description: >
+            The request body was either not present or did not contain a valid Submission object.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
+          description: >
+            The request was not made by an authenticated User satisfying the authorization criteria described above.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Specified Assignment `id` not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /users:
-    post:
-      summary: Create a new User.
-      description: >
-        Create and store a new application User with specified data and adds it to the application's database.  Only an authenticated User with 'admin' role can create users with the 'admin' or 'instructor' roles.
-      operationId: createUser
-      tags:
-        - Users
-      requestBody:
-        required: true
-        description: A User object.
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/User'
-      responses:
-        '201':
-          description: New User successfully added
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    oneOf:
-                      - type: integer
-                      - type: string
-                    description: >
-                      Unique ID of the created User.  Exact type/format will depend on your implementation but will likely be either an integer or a string.
-                    example: "123"
-        '400':
-          description: The request body was either not present or did not contain a valid User object.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: The request was not made by an authenticated User satisfying the authorization criteria described above.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /users/login:
-    post:
-      summary: Log in a User.
-      description: >
-        Authenticate a specific User with their email address and password.
-      operationId: authenticateUser
-      tags:
-        - Users
-      requestBody:
-        required: true
-        description: >
-          Email address and plain-text password for the User being authenticated.
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/User'
-            example:
-              email: jdoe@oregonstate.edu
-              password: hunter2
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-                    description: >
-                      A JWT authentication token.
-                    example: aaaaaaaa.bbbbbbbb.cccccccc
-                  user:
-                    $ref: '#/components/schemas/User'
-        '400':
-          description: >
-            The request body was either not present or did not contain all of the required fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: >
-            The specified credentials were invalid.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: >
-            An internal server error occurred.
           content:
             application/json:
               schema:
@@ -689,7 +802,8 @@ components:
           example: doej@oregonstate.edu
         password:
           type: string
-          description: The User's plain-text password.  This is required when creating a new User and when logging in.
+          description: >
+            The User's plain-text password.  This is required when creating a new User and when logging in.
           example: hunter2
         role:
           type: string
