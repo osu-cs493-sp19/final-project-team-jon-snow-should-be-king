@@ -61,7 +61,7 @@ router.get('/:id', async (req, res, next) => {
 /**
  * Route to update an assignment
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   if(
     validateAgainstSchema(req.body, AssignmentSchema) &&
     Number.isInteger(req.body.points) &&
@@ -91,7 +91,7 @@ router.put('/:id', async (req, res) => {
 /**
  * Route to delete an assignment
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     const success = await deleteAssignmentById(id);
