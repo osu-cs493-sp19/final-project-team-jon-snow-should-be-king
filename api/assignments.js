@@ -11,6 +11,12 @@ const {
   updateAssignmentById,
   deleteAssignmentById
 } = require('../models/assignment');
+const { 
+  SubmissionSchema,
+  getSubmissionsPage,
+  getSubmissionsPageByStudent,
+  insertNewSubmission
+ } = require('../models/submission');
 
 /**
  * Route to insert an assignment
@@ -104,6 +110,60 @@ router.delete('/:id', async (req, res, next) => {
     console.error(err);
     res.status(500).send({
       error: "Unable to delete assignment. Please try again later."
+    });
+  }
+});
+
+router.get('/:id/submissions', async (req, res, next) => {
+  const id = parseInt(req.params.id);
+  try {
+    let submissionsPage;
+    if(req.query.studentId) {
+      submissionsPage = await getSubmissionsPageByStudent(
+        id, 
+        parseInt(req.query.studentId), 
+        parseInt(req.query.page) || 1
+      );
+    } else {
+      submissionsPage = await getSubmissionsPage(
+        id, 
+        parseInt(req.query.page) || 1
+      );
+    }
+    if(submissionsPage && submissionsPage.length > 0) {
+      res.status(200).send({
+        submissions: submissionsPage
+      });
+    } else {
+      next();
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({
+      error: "Error fetching submissions page. Please try again later."
+    });
+  }
+});
+
+router.post('/:id/submissions', async (req, res) => {
+  if(validateAgainstSchema(req.body, SubmissionSchema)) {
+    try {
+      const id = await insertNewSubmission(req.body);
+
+      // TODO: File stuff
+
+      res.status(201).send({
+        id: id
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({
+        error: "Error inserting submission into DB. Please try again later."
+      });
+    }
+  } else {
+    res.status(400).send({
+      error: "Request body is not a valid submission object."
     });
   }
 });
