@@ -17,6 +17,7 @@ const CourseSchema = {
   title: { required: true },
   term: { required: true },
   instructorId: { required: true },
+  student_list: { required: false }
 };
 exports.CourseSchema = CourseSchema;
 /*
@@ -86,7 +87,7 @@ async function getCourseById(id) {
     return results[0];
   }
 }
-
+exports.getCourseById = getCourseById;
 /*
  * Executes a DB query to replace a specified course with new data.
  * Returns a Promise that resolves to true if the course specified by
@@ -99,12 +100,13 @@ async function getCourseById(id) {
      return false;
    } else {
      //go through each field within course
+     const result = await collection.updateOne(
+       { _id: new ObjectId(id) },
+       //set e/ field within course, instead of a full replacement
+       { $set: { course } }
+     );
      for (i in course){
-       const result = await collection.updateOne(
-         { _id: new ObjectId(id) },
-         //set e/ field within course, instead of a full replacement
-         { $set: { course[i] } }
-       );
+
      }
      return true;
    }
@@ -117,9 +119,10 @@ async function getCourseById(id) {
   * and was successfully deleted or to false otherwise.
   */
  async function deleteCourseById(id) {
+   const db = getDBReference();
    const collection = db.collection('courses');
    const result = await collection.deleteOne({
-     _id: new ObjectID(id)
+     _id: new ObjectId(id)
    });
    return result.deletedCount > 0;
  }
@@ -136,7 +139,11 @@ async function getCourseById(id) {
    //Considering we are storing the student list in the course collection,
    // just print that out
    if (course) {
-     return course.student_list;
+     let studentlist = {
+        "students": []
+     }
+     studentlist.students = course.student_list;
+     return studentlist;
    } else {
      return null;
    }

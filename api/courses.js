@@ -95,7 +95,7 @@ router.patch('/:id', async (req, res, next) => {
   // NOTE: If it is a patch, do we need to worry about the schema?
   if (validateAgainstSchema(req.body, CourseSchema)) {
       try {
-        const id = parseInt(req.params.id)
+        const id = req.params.id
         const updateSuccessful = await updateCourseById(id, req.body);
         if (updateSuccessful) {
           res.status(200).send({
@@ -124,7 +124,7 @@ router.patch('/:id', async (req, res, next) => {
  */
 router.delete('/:id', async (req, res, next) => {
     try {
-      const deleteSuccessful = await deleteCourseById(parseInt(req.params.id));
+      const deleteSuccessful = await deleteCourseById(req.params.id);
       if (deleteSuccessful) {
         res.status(204).end();
       } else {
@@ -146,7 +146,7 @@ router.get('/:id/students', async (req, res, next) => {
     const students = await getStudentsByCourseId(req.params.id);
     if (students) {
       res.status(200).send(students);
-    } else { // NOTE: Do we want this? There may be a course with no students
+    } else { // NOTE: Will only hit if bas course id, not if no students
       next();
     }
   } catch (err) {
