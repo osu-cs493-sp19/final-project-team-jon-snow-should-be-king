@@ -3,9 +3,11 @@
  */
 
 const { ObjectId } = require('mongodb');
+const { Parser } = require('json2csv');
 
 const { getDBReference } = require('../lib/mongo');
 const { extractValidFields } = require('../lib/validation');
+const { getUserById } = require('./user');
 //const { getPhotosByBusinessId } = require('./photo');
 
 /*
@@ -185,6 +187,31 @@ exports.getCourseById = getCourseById;
   * student information.
   */
  async function getRosterByCourseId(id){
+   const CsvSchema = {
+     _id: { required: true },
+     name: { required: true },
+     email: { required: true }
+   };
+   const studentsJSON = [];
+   const studentFields = [
+     { label: 'ID', value: '_id'},
+     { label: 'Name', value: 'name'},
+     { label: 'Email', value: 'email'}
+   ];
+
+   const studentIds = await getStudentsByCourseId(id);
+
+   for (i in studentIds.students){
+     // NOTE: When Brett has Users up, check on getUserById naming
+     const student = await getUserById(studentIds.students[i]);
+     studentsJSON.push(student);
+   }
+   studentsJSON = extractValidFields(studentsJSON, CsvSchema);
+
+   const json2csvParser = new Parser({ studentFields });
+   const csv = json2csvParser.parse(studentsJSON);
+
+   return csv;
 
  }exports.getRosterByCourseId = getRosterByCourseId;
 
