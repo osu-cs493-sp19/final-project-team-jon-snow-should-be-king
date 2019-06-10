@@ -12,6 +12,7 @@ db.courses.insertMany([
     "number": "493",
     "title": "Cloud Application Development",
     "term": "sp19",
-    "instructorId": "1"
+    "instructorId": "1",
+    "student_list": ["123", "234"]
   }
 ]);

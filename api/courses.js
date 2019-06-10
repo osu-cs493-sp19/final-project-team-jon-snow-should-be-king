@@ -5,8 +5,12 @@ const { getCoursesPage,
         CourseSchema,
         insertNewCourse,
         getCourseById,
-        replaceCourseById,
-        deleteCourseById
+        updateCourseById,
+        deleteCourseById,
+        getStudentsByCourseId,
+        updateStudentsByCourseId,
+        getRosterByCourseId,
+        getAssignmentsByCourseId
       } = require('../models/course');
 
 const { validateAgainstSchema } = require('../lib/validation');
@@ -87,11 +91,12 @@ router.get('/:id', async (req, res, next) => {
 /*
  * Route to replace data for a course.
  */
-router.put('/:id', async (req, res, next) => {
+router.patch('/:id', async (req, res, next) => {
+  // NOTE: If it is a patch, do we need to worry about the schema?
   if (validateAgainstSchema(req.body, CourseSchema)) {
       try {
         const id = parseInt(req.params.id)
-        const updateSuccessful = await replaceCourseById(id, req.body);
+        const updateSuccessful = await updateCourseById(id, req.body);
         if (updateSuccessful) {
           res.status(200).send({
             links: {
@@ -159,7 +164,7 @@ router.get('/:id/students', async (req, res, next) => {
 router.post('/:id/students', async (req, res, next) => {
   if (req.body && req.body.add && req.body.remove) {
     try {
-      const updateSuccessful = await updateStudentsByCourseId(req.body);
+      const updateSuccessful = await updateStudentsByCourseId(req.params.id, req.body);
       if (updateSuccessful) {
         res.status(200).send();
       }else {

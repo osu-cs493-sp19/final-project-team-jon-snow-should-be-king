@@ -88,23 +88,119 @@ async function getCourseById(id) {
 }
 
 /*
- * Executes a MySQL query to replace a specified course with new data.
+ * Executes a DB query to replace a specified course with new data.
  * Returns a Promise that resolves to true if the course specified by
  * `id` existed and was successfully updated or to false otherwise.
  */
  async function updateCourseById(id, course) {
-   // TODO: Mongo
-   return true;
+   const db = getDBReference();
+   const collection = db.collection('courses');
+   if (!ObjectId.isValid(id)) {
+     return false;
+   } else {
+     //go through each field within course
+     for (i in course){
+       const result = await collection.updateOne(
+         { _id: new ObjectId(id) },
+         //set e/ field within course, instead of a full replacement
+         { $set: { course[i] } }
+       );
+     }
+     return true;
+   }
  }
  exports.updateCourseById = updateCourseById;
 
  /*
-  * Executes a MySQL query to delete a course specified by its ID.  Returns
+  * Executes a DB query to delete a course specified by its ID.  Returns
   * a Promise that resolves to true if the course specified by `id` existed
   * and was successfully deleted or to false otherwise.
   */
  async function deleteCourseById(id) {
-   // TODO: Mongo
-   return true;
+   const collection = db.collection('courses');
+   const result = await collection.deleteOne({
+     _id: new ObjectID(id)
+   });
+   return result.deletedCount > 0;
  }
  exports.deleteCourseById = deleteCourseById;
+
+ /*
+  * Executes a DB query to get the students enrolled in a specified course.
+  * Returns a Promise of the students enrolled in the course, or returns an
+  * empty object if the id is null.
+  */
+ async function getStudentsByCourseId(id) {
+   const course = await getCourseById(id);
+   //work smarter, not harder.
+   //Considering we are storing the student list in the course collection,
+   // just print that out
+   if (course) {
+     return course.student_list;
+   } else {
+     return null;
+   }
+ }exports.getStudentsByCourseId = getStudentsByCourseId;
+
+ /*
+  * Executes a DB query to update the students within a course.  Returns
+  * a Promise that resolves to true if the course was updated successfully
+  * or to false otherwise.
+  */
+ async function updateStudentsByCourseId(id, changes){
+   const adds = changes.add;
+   const removes = changes.remove;
+
+   const db = getDBReference();
+   const collection = db.collection('courses');
+   if (!ObjectId.isValid(id)) {
+     return false;
+   } else {
+     for (i in adds){
+       const result = await collection.updateOne(
+         { _id: new ObjectId(id) },
+         { $push: { student_list: adds[i] } }
+       );
+     };
+     for (j in removes){
+       const result = await collection.updateOne(
+         { _id: new ObjectId(id) },
+         { $pull: { student_list: removes[j] } }
+       );
+     };
+     return true;
+   }
+ }exports.updateStudentsByCourseId = updateStudentsByCourseId;
+
+ /*
+  * Executes a DB query to fetch a csv file of the students within a course.
+  * Returns the csv file of the students enrolled in the course with some
+  * student information.
+  */
+ async function getRosterByCourseId(id){
+
+ }exports.getRosterByCourseId = getRosterByCourseId;
+
+ /*
+  * Executes a DB query to fetch the assignments of a specified course.
+  * Returns the id's of the assignments of the course, or an empty object
+  * if the course id is incorrect.
+  */
+ async function getAssignmentsByCourseId(id){
+   const db = getDBReference();
+   const collection = db.collection('assignments');
+   let assignIds = {
+     "assignments": []
+   };
+   if (!ObjectId.isValid(id)) {
+     return null;
+   } else {
+     const results = await collection
+       .find({ couseId: new ObjectId(id) })
+       .toArray();
+     for (i in results){
+       assignIds.assignments.push(results[i]._id);
+     }
+     return assignIds;
+   }
+ }exports.getAssignmentsByCourseId = getAssignmentsByCourseId;
