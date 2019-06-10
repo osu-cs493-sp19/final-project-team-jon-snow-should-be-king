@@ -3,7 +3,7 @@ const morgan = require('morgan');
 const bodyParser = require('body-parser');
 
 const api = require('./api');
-//const { connectToDB } = require('./lib/mongo');
+const { connectToDB } = require('./lib/mongo');
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -29,13 +29,8 @@ app.use('*', function (req, res, next) {
   });
 });
 
-/* uncomment when mongo works 
 connectToDB(() => {
   app.listen(port, () => {
     console.log("== Server is running on port", port);
   });
-});
-*/
-app.listen(port, () => {
-  console.log("== Server is running on port", port);
 });
