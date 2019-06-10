@@ -74,7 +74,7 @@ router.post('/', async (req, res) => {
  */
 router.get('/:id', async (req, res, next) => {
   try {
-    const course = await getCourseById(req.params.id);
+    const course = await getCourseById(req.params.id, 0);
     if (course) {
       res.status(200).send(course);
     } else {

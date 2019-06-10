@@ -41,7 +41,7 @@ async function getCoursesPage(page) {
   page = page < 1 ? 1 : page;
   const offset = (page - 1) * pageSize;
 
-  const results = await collection.find({})
+  const results = await collection.find({}, {projection:{ student_list: 0 }})
     .sort({ _id: 1 })
     .skip(offset)
     .limit(pageSize)
@@ -76,15 +76,17 @@ exports.insertNewCourse = insertNewCourse;
  * course.  Returns a Promise that resolves to an object containing
  * information about the requested course.  If no course with the
  * specified ID exists, the returned Promise will resolve to null.
+ * includeStudents will hide students if set to 0, or will show
+ * students if set to 1.
  */
-async function getCourseById(id) {
+async function getCourseById(id, includeStudents) {
   const db = getDBReference();
   const collection = db.collection('courses');
   if (!ObjectId.isValid(id)) {
     return null;
   } else {
     const results = await collection
-      .find({ _id: new ObjectId(id) })
+      .find({ _id: new ObjectId(id) }, {projection:{ student_list: includeStudents }})
       .toArray();
     return results[0];
   }
@@ -101,15 +103,25 @@ exports.getCourseById = getCourseById;
    if (!ObjectId.isValid(id)) {
      return false;
    } else {
-     //go through each field within course
+     const updatedCourse = await getCourseById(id, 0);
+     //update course values if given fields are different
+     updatedCourse.subject = updatedCourse.subject!=course.subject&&course.subject?course.subject:updatedCourse.subject;
+     updatedCourse.number = updatedCourse.number!=course.number&&course.number?course.number:updatedCourse.number;
+     updatedCourse.title = updatedCourse.title!=course.title&&course.title?course.title:updatedCourse.title;
+     updatedCourse.term = updatedCourse.term!=course.term&&course.term?course.term:updatedCourse.term;
+     updatedCourse.instructorId = updatedCourse.instructorId!=course.instructorId&&course.instructorId?course.instructorId:updatedCourse.instructorId;
      const result = await collection.updateOne(
        { _id: new ObjectId(id) },
        //set e/ field within course, instead of a full replacement
-       { $set: { course } }
+       {$set: {
+                "subject":updatedCourse.subject,
+                "number": updatedCourse.number,
+                "title": updatedCourse.title,
+                "term": updatedCourse.term,
+                "instructorId": updatedCourse.instructorId
+              }
+        }
      );
-     for (i in course){
-
-     }
      return true;
    }
  }
@@ -136,7 +148,7 @@ exports.getCourseById = getCourseById;
   * empty object if the id is null.
   */
  async function getStudentsByCourseId(id) {
-   const course = await getCourseById(id);
+   const course = await getCourseById(id, 1);
    //work smarter, not harder.
    //Considering we are storing the student list in the course collection,
    // just print that out
@@ -227,6 +239,7 @@ exports.getCourseById = getCourseById;
      "assignments": []
    };
    if (!ObjectId.isValid(id)) {
+     console.log("id not valid");
      return null;
    } else {
      const results = await collection
