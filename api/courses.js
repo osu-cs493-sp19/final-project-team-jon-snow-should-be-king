@@ -133,4 +133,89 @@ router.delete('/:id', async (req, res, next) => {
     }
 });
 
+/*
+ *  Route to fetch students from a course
+ */
+router.get('/:id/students', async (req, res, next) => {
+  try {
+    const students = await getStudentsByCourseId(req.params.id);
+    if (students) {
+      res.status(200).send(students);
+    } else { // NOTE: Do we want this? There may be a course with no students
+      next();
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({
+      error: "Unable to fetch students.  Please try again later."
+    });
+  }
+});
+
+
+/*
+*  Route to update enrollment in a course
+*/
+router.post('/:id/students', async (req, res, next) => {
+  if (req.body && req.body.add && req.body.remove) {
+    try {
+      const updateSuccessful = await updateStudentsByCourseId(req.body);
+      if (updateSuccessful) {
+        res.status(200).send();
+      }else {
+        next(); //404 error
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({
+        error: "Error updating students into DB.  Please try again later."
+      });
+    }
+  } else {
+    res.status(400).send({
+      error: "Request body is not valid with add & remove fields."
+    });
+  }
+});
+
+/*
+ *  Route to fetch a csv file of the students within a course
+ */
+ router.get('/:id/roster', async (req, res, next) => {
+   try {
+     const csvfile = await getRosterByCourseId(req.params.id);
+     if (csvfile) {
+       // TODO: Figure this out. Don't think we can just send the file like this
+       res.status(200).send(csvfile);
+     } else {
+       next();
+     }
+   } catch (err) {
+     console.error(err);
+     res.status(500).send({
+       error: "Unable to fetch roster of students.  Please try again later."
+     });
+   }
+ });
+
+/*
+ *  Route to fetch assignments from a course
+ */
+ router.get('/:id/assignments', async (req, res, next) => {
+   try {
+     const assignments = await getAssignmentsByCourseId(req.params.id);
+     if (assignments) {
+       res.status(200).send(assignments);
+     } else {
+       next();
+     }
+   } catch (err) {
+     console.error(err);
+     res.status(500).send({
+       error: "Unable to fetch assignments for the course.  Please try again later."
+     });
+   }
+ });
+
+
 module.exports = router;
