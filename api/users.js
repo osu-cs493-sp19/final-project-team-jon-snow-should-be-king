@@ -5,7 +5,7 @@
 const router = require('express').Router();
 const { requireAuthentication, generateAuthToken, isAdmin } = require('../lib/auth');
 const { validateAgainstSchema } = require('../lib/validation');
-const { UserSchema, insertNewUser, getUserByEmail, validateUser, getUserById } = require('../models/user');
+const { UserSchema, insertNewUser, getUserByEmail, validateUser, getUserById, getAllUsers } = require('../models/user');
 
 /*
  * Route to insert a new user
@@ -93,6 +93,29 @@ router.get('/:id', requireAuthentication, async (req, res) => {
   } else {
     res.status(403).send({
       error: "unauthorized to view user"
+    });
+  }
+});
+
+/*
+ * TESTING ROUTE TO GET ALL USERS
+ */
+router.get('/', requireAuthentication, async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    if (users) {
+      res.status(200).send({
+        users
+      });
+    } else {
+      res.status(404).send({
+        error: "Brett jacked something up. "
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({
+      error: "Dont forget to purge your shit"
     });
   }
 });

@@ -57,6 +57,17 @@ async function getUserById(id) {
 exports.getUserById = getUserById;
 
 /*
+ * TESTING FUNCTION TO GET ALL USERS IN TABLE
+ */
+async function getAllUsers() {
+  const db = getDBReference();
+  const collection = db.collection('users');
+  const data = await collection.find().toArray();
+  return data;
+};
+exports.getAllUsers = getAllUsers;
+
+/*
  * See if user email and password are good to login
  */
 async function validateUser(email, password) {
