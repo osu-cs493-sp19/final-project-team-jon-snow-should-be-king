@@ -100,7 +100,7 @@ router.get('/:id', requireAuthentication, async (req, res) => {
 /*
  * TESTING ROUTE TO GET ALL USERS
  */
-router.get('/', requireAuthentication, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const users = await getAllUsers();
     if (users) {
