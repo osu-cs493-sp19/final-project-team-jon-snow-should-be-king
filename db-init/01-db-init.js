@@ -7,6 +7,17 @@ db.assignments.insertMany([
   }
 ]);
 
+db.courses.insertMany([
+  {
+    "subject": "CS",
+    "number": "493",
+    "title": "Cloud Application Development",
+    "term": "sp19",
+    "instructorId": "1",
+    "student_list": ["123", "234"]
+  }
+]);
+
 db.users.insertMany([
   {
     "name": "admin",
