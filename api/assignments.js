@@ -74,8 +74,7 @@ router.put('/:id', async (req, res, next) => {
     validateISO8601Date(req.body.due)
   ) {
     try {
-      const id = parseInt(req.params.id);
-      const success = await updateAssignmentById(id, req.body);
+      const success = await updateAssignmentById(req.params.id, req.body);
       if(success) {
         res.status(200).send();
       } else { 
