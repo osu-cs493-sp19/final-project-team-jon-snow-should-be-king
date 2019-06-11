@@ -5,7 +5,8 @@
 const router = require('express').Router();
 const { requireAuthentication, generateAuthToken, isAdmin } = require('../lib/auth');
 const { validateAgainstSchema } = require('../lib/validation');
-const { UserSchema, insertNewUser, getUserByEmail, validateUser, getUserById, getAllUsers } = require('../models/user');
+const { UserSchema, insertNewUser, getUserByEmail, validateUser, getUserById, getAllUsers, getCoursesByInstructorId } = require('../models/user');
+const { getCourseById } = require('../models/course');
 
 /*
  * Route to insert a new user
@@ -74,8 +75,19 @@ router.get('/:id', requireAuthentication, async (req, res) => {
   const id = req.params.id;
   if (loggedInUser._id == id || isAdmin(loggedInUser)) {
     try {
-      const user = await getUserById(id);
-      if (user) {
+      const userData = await getUserById(id);
+      if (userData) {
+        let user = {
+          name: userData.name,
+          email: userData.email,
+          role: userData.role
+        }
+        if (user.role == 'instructor'){
+          user.courses = await getCoursesByInstructorId(id);
+        }
+        if (user.role == 'student'){
+          user.courses = userData.courses;
+        }
         res.status(200).send({
           user
         });
