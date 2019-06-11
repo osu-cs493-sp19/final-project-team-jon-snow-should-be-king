@@ -174,6 +174,8 @@ exports.getCourseById = getCourseById;
 
    const db = getDBReference();
    const collection = db.collection('courses');
+   const users = db.collection('users');
+   const course = await getCourseById(id);
    if (!ObjectId.isValid(id)) {
      return false;
    } else {
@@ -182,12 +184,20 @@ exports.getCourseById = getCourseById;
          { _id: new ObjectId(id) },
          { $push: { student_list: adds[i] } }
        );
+       const userResult = await users.updateOne(
+         { _id: new ObjectId(adds[i]) },
+         { $push: {courses: course}}
+       );
      };
      for (j in removes){
        const result = await collection.updateOne(
          { _id: new ObjectId(id) },
          { $pull: { student_list: removes[j] } }
        );
+       const userResult = await users.updateOne(
+        { _id: new ObjectId(removes[j]) },
+        { $pull: {courses: id}}
+      );
      };
      return true;
    }

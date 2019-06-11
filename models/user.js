@@ -11,7 +11,8 @@ const UserSchema = {
   name: { required: true },
   email: { required: true },
   password: { required: true },
-  role: { required: true }
+  role: { required: true },
+  courses: {required: false}
 };
 exports.UserSchema = UserSchema;
 
@@ -51,10 +52,19 @@ exports.getUserByEmail = getUserByEmail;
 async function getUserById(id) {
   const db = getDBReference();
   const collection = db.collection('users');
-  const data = await collection.find({"_id": ObjectId(id)}).project({ email: 1, name: 1, role: 1}).toArray();
+  const data = await collection.find({"_id": new ObjectId(id)}).toArray();
   return data[0];
 };
 exports.getUserById = getUserById;
+
+async function getCoursesByInstructorId(id){
+  const db = getDBReference();
+  const collection = db.collection('courses');
+  const data = await collection.find({"instructorId": id}).toArray();
+  return data;
+}
+exports.getCoursesByInstructorId = getCoursesByInstructorId;
+
 
 /*
  * TESTING FUNCTION TO GET ALL USERS IN TABLE
