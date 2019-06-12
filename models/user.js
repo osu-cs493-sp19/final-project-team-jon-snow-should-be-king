@@ -21,9 +21,9 @@ exports.UserSchema = UserSchema;
 async function insertNewUser(user, req) {
   const userToInsert = extractValidFields(user, UserSchema);
   const passwordHash = await bcrypt.hash(userToInsert.password, 8);
-  const loggedInUser = await getUserByEmail(getAuthUser(req));
+  const loggedInUser = await getUserById(getAuthUser(req));
   userToInsert.password = passwordHash;
-  if ((userToInsert.role == 'admin' || userToInsert.role == 'instructor') && !isAdmin(loggedInUser)) {
+  if ((userToInsert.role == 'admin' || userToInsert.role == 'instructor') && !isAdmin(loggedInUser.role)) {
     console.log(`!!!!! non admin user tried to add ${userToInsert.role} !!!!!`);
     return null;
   } else {
@@ -72,7 +72,6 @@ exports.getAllUsers = getAllUsers;
  */
 async function validateUser(email, password) {
   const user = await getUserByEmail(email);
-  console.log(user);
   const authenticated = user && await bcrypt.compare(password, user.password);
   return authenticated;
 };
