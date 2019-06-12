@@ -1,3 +1,9 @@
+const fs = require('fs');
+const { ObjectId, GridFSBucket } = require('mongodb');
+
+const { getDBReference } = require('../lib/mongo');
+const { extractValidFields } = require('../lib/validation');
+
 /*
 * Schema describing required/optional fields of a submission object.
 */
@@ -18,6 +24,7 @@ function getPageOffset(page, itemCount, itemsPerPage) {
 
 async function getSubmissionsPage(id, page) {
   // TODO: Mongo, get collection and count it
+  const db = getDBReference();
   const count = 0;
 
   const pageSize = 2;
