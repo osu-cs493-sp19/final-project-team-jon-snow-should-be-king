@@ -2,7 +2,10 @@
  * API sub-router for assignment collection endpoints.
  */
 
+const fs = require('fs');
 const router = require('express').Router();
+const multer = require('multer');
+const crypto = require('crypto');
 const { validateAgainstSchema, validateISO8601Date } = require('../lib/validation');
 const { 
   AssignmentSchema,
@@ -18,6 +21,26 @@ const {
   insertNewSubmission
  } = require('../models/submission');
 
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: `${__dirname}/uploads`,
+    filename: (req, file, callback) => {
+      const filename = crypto.pseudoRandomBytes(16).toString('hex');
+      callback(null, `${filename}`);
+    }
+  })
+});
+
+function removeUploadedFile(file) {
+  return new Promise((resolve, reject) => {
+    fs.unlink(file.path, (err) => {
+      if(err) reject(err);
+      else resolve();
+    })
+  })
+}
+
+
 /**
  * Route to insert an assignment
  */
@@ -30,7 +53,10 @@ router.post('/', async (req, res) => {
       try {
         const id = await insertNewAssignment(req.body);
         res.status(201).send({
-          id: id
+          id: id,
+          links: {
+            assignment: `/assignments/${id}`
+          }
         });
       } catch (err) {
         console.error(err);
@@ -98,7 +124,7 @@ router.put('/:id', async (req, res, next) => {
  */
 router.delete('/:id', async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
     const success = await deleteAssignmentById(id);
     if(success) {
       res.status(204).send();
@@ -114,25 +140,29 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 router.get('/:id/submissions', async (req, res, next) => {
-  const id = parseInt(req.params.id);
+  const id = req.params.id;
+  const studentId = req.query.studentId
   try {
-    let submissionsPage;
-    if(req.query.studentId) {
-      submissionsPage = await getSubmissionsPageByStudent(
-        id, 
-        parseInt(req.query.studentId), 
-        parseInt(req.query.page) || 1
-      );
-    } else {
-      submissionsPage = await getSubmissionsPage(
-        id, 
-        parseInt(req.query.page) || 1
-      );
-    }
-    if(submissionsPage && submissionsPage.length > 0) {
-      res.status(200).send({
-        submissions: submissionsPage
-      });
+    const submissionsPage = await getSubmissionsPage(
+      id, 
+      studentId, 
+      parseInt(req.query.page) || 1
+    );
+    if(submissionsPage.submissions && submissionsPage.submissions.length > 0) {
+      submissionsPage.links = {};
+      if (submissionsPage.page < submissionsPage.totalPages) {
+        submissionsPage.links.nextPage = `/assignments/${id}/submissions?page=${submissionsPage.page + 1}`
+          + (!!studentId ? `studentId=${studentId}` : '');
+        submissionsPage.links.lastPage = `/assignments/${id}/submissions?page=${submissionsPage.totalPages}`
+          + (!!studentId ? `studentId=${studentId}` : '');
+      }
+      if (submissionsPage.page > 1) {
+        submissionsPage.links.prevPage = `/assignments/${id}/submissions?page=${submissionsPage.page - 1}`
+          + (!!studentId ? `studentId=${studentId}` : '');
+        submissionsPage.links.firstPage = `/assignments/${id}/submissions?page=1`
+          + (!!studentId ? `studentId=${studentId}` : '');
+      }
+      res.status(200).send(submissionsPage);
     } else {
       next();
     }
@@ -144,15 +174,14 @@ router.get('/:id/submissions', async (req, res, next) => {
   }
 });
 
-router.post('/:id/submissions', async (req, res) => {
+router.post('/:id/submissions', upload.single('file'), async (req, res) => {
   if(validateAgainstSchema(req.body, SubmissionSchema)) {
     try {
-      const id = await insertNewSubmission(req.body);
-
-      // TODO: File stuff
+      const id = await insertNewSubmission(req.body, req.file);
+      await removeUploadedFile(req.file);
 
       res.status(201).send({
-        id: id
+        url: `/files/${id}`
       });
     } catch (err) {
       console.error(err);
