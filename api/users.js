@@ -45,7 +45,8 @@ router.post('/login', async (req, res) => {
     try {
       const authenticated = await validateUser(req.body.email, req.body.password);
       if (authenticated) {
-        const token = generateAuthToken(req.body.email);
+        const person = await getUserByEmail(req.body.email);
+        const token = generateAuthToken(person._id, person.role);
         res.status(200).send({
           token: token
         });

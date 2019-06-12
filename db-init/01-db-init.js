@@ -24,5 +24,11 @@ db.users.insertMany([
     "email": "admin@admin",
     "password": "$2a$08$UhKY3YdAM9eFEQadLODgpugQ24ygiDZds1mmSfKLGTjVxclDWRyHO",
     "role": "admin"
+  },
+  {
+    "name": "Brett Case",
+    "email": "casebr@oregonstate.edu",
+    "password": "burtIsAQTPie",
+    "role": "student"
   }
 ]);

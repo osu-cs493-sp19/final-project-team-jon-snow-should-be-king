@@ -216,10 +216,10 @@ exports.getCourseById = getCourseById;
    };
    const studentsJSON = [];
    const studentFields = [
-     { label: 'ID', value: '_id'},
-     { label: 'Name', value: 'name'},
-     { label: 'Email', value: 'email'}
-   ];
+      { label: 'ID', value: '_id'},
+      { label: 'Name', value: 'name'},
+      { label: 'Email', value: 'email'}
+  ];
 
    const studentIds = await getStudentsByCourseId(id);
 
@@ -228,10 +228,15 @@ exports.getCourseById = getCourseById;
      const student = await getUserById(studentIds.students[i]);
      studentsJSON.push(student);
    }
-   studentsJSON = extractValidFields(studentsJSON, CsvSchema);
+   const studentsCSV = [];
+   for (i in studentsJSON){
+     studentsCSV.push(extractValidFields(studentsJSON[i], CsvSchema))
+   }
 
    const json2csvParser = new Parser({ studentFields });
-   const csv = json2csvParser.parse(studentsJSON);
+   const csv = json2csvParser.parse(studentsCSV);
+
+   console.log(csv);
 
    return csv;
 

@@ -15,6 +15,8 @@ const { getCoursesPage,
 
 const { validateAgainstSchema } = require('../lib/validation');
 
+const { requireAuthentication, isAdmin, validTeacherId } = require('../lib/auth');
+
 /*
  * Route to return a paginated list of courses.
  */
@@ -46,20 +48,26 @@ router.get('/', async (req, res) => {
 /*
  * Route to create a new course.
  */
-router.post('/', async (req, res) => {
+router.post('/', requireAuthentication, async (req, res) => {
   if (validateAgainstSchema(req.body, CourseSchema)) {
-    try {
-      const id = await insertNewCourse(req.body);
-      res.status(201).send({
-        id: id,
-        links: {
-          course: `/courses/${id}`
-        }
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({
-        error: "Error inserting course into DB.  Please try again later."
+    if (isAdmin(req.role)) {
+      try {
+        const id = await insertNewCourse(req.body);
+        res.status(201).send({
+          id: id,
+          links: {
+            course: `/courses/${id}`
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({
+          error: "Error inserting course into DB.  Please try again later."
+        });
+      }
+    }else{
+      res.status(403).send({
+        error: "Entered credentials do not provide authorized access to this resouce"
       });
     }
   } else {
@@ -91,9 +99,10 @@ router.get('/:id', async (req, res, next) => {
 /*
  * Route to replace data for a course.
  */
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', requireAuthentication, async (req, res, next) => {
   // NOTE: If it is a patch, do we need to worry about the schema?
   if (validateAgainstSchema(req.body, CourseSchema)) {
+    if (isAdmin(req.role) || validTeacherId(req.params.id, req.role, req.user)) {
       try {
         const id = req.params.id
         const updateSuccessful = await updateCourseById(id, req.body);
@@ -112,6 +121,11 @@ router.patch('/:id', async (req, res, next) => {
           error: "Unable to update specified course.  Please try again later."
         });
       }
+    }else {
+      res.status(403).send({
+        error: "Entered credentials do not provide authorized access to this resouce"
+      });
+    }
   } else {
     res.status(400).send({
       error: "Request body is not a valid course object"
@@ -122,7 +136,8 @@ router.patch('/:id', async (req, res, next) => {
 /*
  * Route to delete a course.
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAuthentication, async (req, res, next) => {
+  if (isAdmin(req.role)) {
     try {
       const deleteSuccessful = await deleteCourseById(req.params.id);
       if (deleteSuccessful) {
@@ -136,23 +151,34 @@ router.delete('/:id', async (req, res, next) => {
         error: "Unable to delete course.  Please try again later."
       });
     }
+  }else {
+    res.status(403).send({
+      error: "Entered credentials do not provide authorized access to this resouce"
+    });
+  }
 });
 
 /*
  *  Route to fetch students from a course
  */
-router.get('/:id/students', async (req, res, next) => {
-  try {
-    const students = await getStudentsByCourseId(req.params.id);
-    if (students) {
-      res.status(200).send(students);
-    } else { // NOTE: Will only hit if bas course id, not if no students
-      next();
+router.get('/:id/students', requireAuthentication, async (req, res, next) => {
+  if (isAdmin(req.role) || validTeacherId(req.params.id, req.role, req.user)) {
+    try {
+      const students = await getStudentsByCourseId(req.params.id);
+      if (students) {
+        res.status(200).send(students);
+      } else { // NOTE: Will only hit if bas course id, not if no students
+        next();
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({
+        error: "Unable to fetch students.  Please try again later."
+      });
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({
-      error: "Unable to fetch students.  Please try again later."
+  }else{
+    res.status(403).send({
+      error: "Entered credentials do not provide authorized access to this resouce"
     });
   }
 });
@@ -161,24 +187,30 @@ router.get('/:id/students', async (req, res, next) => {
 /*
 *  Route to update enrollment in a course
 */
-router.post('/:id/students', async (req, res, next) => {
-  if (req.body && req.body.add && req.body.remove) {
-    try {
-      const updateSuccessful = await updateStudentsByCourseId(req.params.id, req.body);
-      if (updateSuccessful) {
-        res.status(200).send();
-      }else {
-        next(); //404 error
+router.post('/:id/students', requireAuthentication, async (req, res, next) => {
+  if (isAdmin(req.role) || validTeacherId(req.params.id, req.role, req.user)) {
+    if (req.body && req.body.add && req.body.remove) {
+      try {
+        const updateSuccessful = await updateStudentsByCourseId(req.params.id, req.body);
+        if (updateSuccessful) {
+          res.status(200).send();
+        }else {
+          next(); //404 error
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({
+          error: "Error updating students into DB.  Please try again later."
+        });
       }
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({
-        error: "Error updating students into DB.  Please try again later."
+    } else {
+      res.status(400).send({
+        error: "Request body is not valid with add & remove fields."
       });
     }
-  } else {
-    res.status(400).send({
-      error: "Request body is not valid with add & remove fields."
+  }else{
+    res.status(403).send({
+      error: "Entered credentials do not provide authorized access to this resouce"
     });
   }
 });
@@ -186,19 +218,25 @@ router.post('/:id/students', async (req, res, next) => {
 /*
  *  Route to fetch a csv file of the students within a course
  */
- router.get('/:id/roster', async (req, res, next) => {
-   try {
-     const csvfile = await getRosterByCourseId(req.params.id);
-     if (csvfile) {
-       // TODO: Figure this out. Don't think we can just send the file like this
-       res.status(200).send(csvfile);
-     } else {
-       next();
+ router.get('/:id/roster', requireAuthentication, async (req, res, next) => {
+   if (isAdmin(req.role) || validTeacherId(req.params.id, req.role, req.user)) {
+     try {
+       const csvfile = await getRosterByCourseId(req.params.id);
+       if (csvfile) {
+         // TODO: Figure this out. Don't think we can just send the file like this
+         res.status(200).send(csvfile);
+       } else {
+         next();
+       }
+     } catch (err) {
+       console.error(err);
+       res.status(500).send({
+         error: "Unable to fetch roster of students.  Please try again later."
+       });
      }
-   } catch (err) {
-     console.error(err);
-     res.status(500).send({
-       error: "Unable to fetch roster of students.  Please try again later."
+   }else{
+     res.status(403).send({
+       error: "Entered credentials do not provide authorized access to this resouce"
      });
    }
  });
