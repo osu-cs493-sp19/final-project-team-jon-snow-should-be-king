@@ -42,7 +42,8 @@ exports.insertNewUser = insertNewUser;
 async function getUserByEmail(email) {
   const db = getDBReference();
   const collection = db.collection('users');
-  return await collection.findOne({"email": email});
+  const user = await collection.find({"email": email}).toArray();
+  return user[0];
 };
 exports.getUserByEmail = getUserByEmail;
 

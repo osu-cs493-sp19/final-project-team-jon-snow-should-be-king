@@ -72,9 +72,9 @@ router.post('/login', async (req, res) => {
  * Route to get information about a user.
  */
 router.get('/:id', requireAuthentication, async (req, res) => {
-  const loggedInUser = await getUserByEmail(req.user);
+  const loggedInUser = await getUserById(req.user);
   const id = req.params.id;
-  if (loggedInUser._id == id || isAdmin(loggedInUser)) {
+  if (loggedInUser._id == id || isAdmin(loggedInUser.role)) {
     try {
       const userData = await getUserById(id);
       if (userData) {
