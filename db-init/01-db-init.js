@@ -26,7 +26,7 @@ db.users.insertMany([
     "role": "admin"
   },
   {
-    "name": "Brett Case",
+    "name": "Crett Base",
     "email": "casebr@oregonstate.edu",
     "password": "burtIsAQTPie",
     "role": "student"
