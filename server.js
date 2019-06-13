@@ -1,6 +1,7 @@
 const express = require('express');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
+const { rateLimit } = require('./lib/rateLimit');
 
 const api = require('./api');
 const { connectToDB } = require('./lib/mongo');
@@ -15,7 +16,7 @@ app.use(morgan('dev'));
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
-
+app.use(rateLimit);
 /*
  * All routes for the API are written in modules in the api/ directory.  The
  * top-level router lives in api/index.js.  That's what we include here, and
