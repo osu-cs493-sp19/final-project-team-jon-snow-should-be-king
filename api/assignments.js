@@ -7,6 +7,7 @@ const router = require('express').Router();
 const multer = require('multer');
 const crypto = require('crypto');
 const { validateAgainstSchema, validateISO8601Date } = require('../lib/validation');
+const { requireAuthentication, isAdmin, validTeacherId, validStudentId } = require('../lib/auth');
 const { 
   AssignmentSchema,
   insertNewAssignment,
@@ -17,7 +18,6 @@ const {
 const { 
   SubmissionSchema,
   getSubmissionsPage,
-  getSubmissionsPageByStudent,
   insertNewSubmission
  } = require('../models/submission');
 
@@ -44,12 +44,13 @@ function removeUploadedFile(file) {
 /**
  * Route to insert an assignment
  */
-router.post('/', async (req, res) => { 
-   if(
-      validateAgainstSchema(req.body, AssignmentSchema) &&
-      Number.isInteger(req.body.points) &&
-      validateISO8601Date(req.body.due)
-    ) {
+router.post('/', requireAuthentication, async (req, res) => {
+  if(
+    validateAgainstSchema(req.body, AssignmentSchema) &&
+    Number.isInteger(req.body.points) &&
+    validateISO8601Date(req.body.due)
+  ) {
+    if(isAdmin(req.role) || await validTeacherId(req.body.courseId, req.role, req.user)) {
       try {
         const id = await insertNewAssignment(req.body);
         res.status(201).send({
@@ -64,11 +65,16 @@ router.post('/', async (req, res) => {
           error: "Error inserting assignment into DB. Please try again later."
         });
       }
-   } else {
-     res.status(400).send({
-       error: "Request body is not a valid assignment object."
-     });
-   }
+    } else {
+      res.status(403).send({
+        error: "Entered credentials do not provide authorized access to this resource"
+      });
+    }
+  } else {
+    res.status(400).send({
+      error: "Request body is not a valid assignment object."
+    });
+  }
 });
 
 /**
@@ -93,18 +99,25 @@ router.get('/:id', async (req, res, next) => {
 /**
  * Route to update an assignment
  */
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireAuthentication, async (req, res, next) => {
   if(
     validateAgainstSchema(req.body, AssignmentSchema) &&
     Number.isInteger(req.body.points) &&
     validateISO8601Date(req.body.due)
   ) {
     try {
-      const success = await updateAssignmentById(req.params.id, req.body);
-      if(success) {
-        res.status(200).send();
-      } else { 
-        next();
+      const assignment = await getAssignmentById(req.params.id);
+      if(isAdmin(req.role) || await validTeacherId(assignment.courseId, req.role, req.user)) {
+        const success = await updateAssignmentById(req.params.id, req.body);
+        if(success) {
+          res.status(200).send();
+        } else {
+          next();
+        }
+      } else {
+        res.status(403).send({
+          error: "Entered credentials do not provide authorized access to this resource"
+        });
       }
     } catch (err) {
       console.error(err);
@@ -122,14 +135,21 @@ router.put('/:id', async (req, res, next) => {
 /**
  * Route to delete an assignment
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAuthentication, async (req, res, next) => {
   try {
-    const id = req.params.id;
-    const success = await deleteAssignmentById(id);
-    if(success) {
-      res.status(204).send();
+    const assignment = await getAssignmentById(req.params.id);
+    if(isAdmin(req.role) || await validTeacherId(assignment.courseId, req.role, req.user)) {
+      const id = req.params.id;
+      const success = await deleteAssignmentById(id);
+      if(success) {
+        res.status(204).send();
+      } else {
+        next();
+      }
     } else {
-      next();
+      res.status(403).send({
+        error: "Entered credentials do not provide authorized access to this resource"
+      })
     }
   } catch (err) {
     console.error(err);
@@ -139,32 +159,39 @@ router.delete('/:id', async (req, res, next) => {
   }
 });
 
-router.get('/:id/submissions', async (req, res, next) => {
+router.get('/:id/submissions', requireAuthentication, async (req, res, next) => {
   const id = req.params.id;
   const studentId = req.query.studentId
   try {
-    const submissionsPage = await getSubmissionsPage(
-      id, 
-      studentId, 
-      parseInt(req.query.page) || 1
-    );
-    if(submissionsPage.submissions && submissionsPage.submissions.length > 0) {
-      submissionsPage.links = {};
-      if (submissionsPage.page < submissionsPage.totalPages) {
-        submissionsPage.links.nextPage = `/assignments/${id}/submissions?page=${submissionsPage.page + 1}`
-          + (!!studentId ? `studentId=${studentId}` : '');
-        submissionsPage.links.lastPage = `/assignments/${id}/submissions?page=${submissionsPage.totalPages}`
-          + (!!studentId ? `studentId=${studentId}` : '');
+    const assignment = await getAssignmentById(req.params.id);
+    if(isAdmin(req.role) || await validTeacherId(assignment.courseId, req.role, req.user)) {
+      const submissionsPage = await getSubmissionsPage(
+        id, 
+        studentId, 
+        parseInt(req.query.page) || 1
+      );
+      if(submissionsPage.submissions && submissionsPage.submissions.length > 0) {
+        submissionsPage.links = {};
+        if (submissionsPage.page < submissionsPage.totalPages) {
+          submissionsPage.links.nextPage = `/assignments/${id}/submissions?page=${submissionsPage.page + 1}`
+            + (!!studentId ? `studentId=${studentId}` : '');
+          submissionsPage.links.lastPage = `/assignments/${id}/submissions?page=${submissionsPage.totalPages}`
+            + (!!studentId ? `studentId=${studentId}` : '');
+        }
+        if (submissionsPage.page > 1) {
+          submissionsPage.links.prevPage = `/assignments/${id}/submissions?page=${submissionsPage.page - 1}`
+            + (!!studentId ? `studentId=${studentId}` : '');
+          submissionsPage.links.firstPage = `/assignments/${id}/submissions?page=1`
+            + (!!studentId ? `studentId=${studentId}` : '');
+        }
+        res.status(200).send(submissionsPage);
+      } else {
+        next();
       }
-      if (submissionsPage.page > 1) {
-        submissionsPage.links.prevPage = `/assignments/${id}/submissions?page=${submissionsPage.page - 1}`
-          + (!!studentId ? `studentId=${studentId}` : '');
-        submissionsPage.links.firstPage = `/assignments/${id}/submissions?page=1`
-          + (!!studentId ? `studentId=${studentId}` : '');
-      }
-      res.status(200).send(submissionsPage);
     } else {
-      next();
+      res.status(403).send({
+        error: "Entered credentials do not provide authorized access to this resource"
+      });
     }
   } catch (err) {
     console.error(err);
@@ -174,15 +201,21 @@ router.get('/:id/submissions', async (req, res, next) => {
   }
 });
 
-router.post('/:id/submissions', upload.single('file'), async (req, res) => {
+router.post('/:id/submissions', requireAuthentication, upload.single('file'), async (req, res) => {
   if(validateAgainstSchema(req.body, SubmissionSchema)) {
     try {
-      const id = await insertNewSubmission(req.body, req.file);
-      await removeUploadedFile(req.file);
-
-      res.status(201).send({
-        url: `/files/${id}`
-      });
+      const assignment = await getAssignmentById(req.params.id);
+      if(isAdmin(req.role) || await validStudentId(assignment.courseId, req.role, req.user)) {
+        const id = await insertNewSubmission(req.body, req.file);
+        await removeUploadedFile(req.file);
+        res.status(201).send({
+          url: `/files/${id}`
+        });
+      } else {
+        res.status(403).send({
+          error: "Entered credentials do not provide authorized access to this resource"
+        })
+      }
     } catch (err) {
       console.error(err);
       res.status(500).send({

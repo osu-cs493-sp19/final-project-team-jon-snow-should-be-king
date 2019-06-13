@@ -258,7 +258,7 @@ exports.getCourseById = getCourseById;
      return null;
    } else {
      const results = await collection
-       .find({ couseId: new ObjectId(id) })
+       .find({ courseId: id })
        .toArray();
      for (i in results){
        assignIds.assignments.push(results[i]._id);
