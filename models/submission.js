@@ -1,3 +1,9 @@
+const fs = require('fs');
+const { ObjectId, GridFSBucket } = require('mongodb');
+
+const { getDBReference } = require('../lib/mongo');
+const { extractValidFields } = require('../lib/validation');
+
 /*
 * Schema describing required/optional fields of a submission object.
 */
@@ -9,43 +15,80 @@ const SubmissionSchema = {
 };
 exports.SubmissionSchema = SubmissionSchema;
 
-function getPageOffset(page, itemCount, itemsPerPage) {
-  const lastPage = Math.ceil(itemCount / itemsPerPage);
-  page = page > lastPage ? lastPage : page;
-  page = page < 1 ? 1 : page;
-  return (page - 1) * itemsPerPage;
-}
+async function getSubmissionsPage(id, studentId, page) {
+  const db = getDBReference();
+  const bucket = new GridFSBucket(db, {bucketName: 'submissions'});
 
-async function getSubmissionsPage(id, page) {
-  // TODO: Mongo, get collection and count it
-  const count = 0;
+  if(!ObjectId.isValid(id)) {
+    return null;
+  } else {
+    const count = (await bucket.find({}).toArray()).length;
+    
+    const pageSize = 2;
+    const lastPage = Math.ceil(count / pageSize);
+    page = page > lastPage ? lastPage : page;
+    page = page < 1 ? 1 : page;
+    offset = (page - 1) * pageSize;
 
-  const pageSize = 2;
-  offset = getPageOffset(page, count, pageSize);
+    // If studentId exists in this context, query by studentId else just look for the assignmentId entry
+    const results = await (!!studentId ?
+      await bucket
+        .find({ 
+          'metadata.assignmentId': new ObjectId(id), 
+          'metadata.studentId': new ObjectId(studentId) 
+        }) :
+      await bucket
+        .find({
+        'metadata.assignmentId': new ObjectId(id)
+        })
+      )
+      .sort({ _id: 1 })
+      .skip(offset)
+      .limit(pageSize)
+      .toArray();
+    
+    // Reformat all returned results
+    results.forEach((result, i) => {
+      results[i] = {
+        assignmentId: result.metadata.assignmentId,
+        studentId: result.metadata.studentId,
+        timestamp: result.metadata.timestamp,
+        file: `/files/${result._id}`
+      }
+    });
 
-  // TODO: Get page from collection using offset, pageSize and id
-  const results = [1, 2];
-
-  return results;
+    return {
+      submissions: results,
+      page: page,
+      totalPages: lastPage,
+      pageSize: pageSize,
+      count: count
+    };
+  }
 }
 exports.getSubmissionsPage = getSubmissionsPage;
 
-async function getSubmissionsPageByStudent(id, studentId, page) {
-  // TODO: Mongo, get collection and count it
-  const count = 0;
+async function insertNewSubmission(submission, file) {
+  return new Promise((resolve, reject) => {
+    const metadata = extractValidFields(submission, SubmissionSchema);
+    metadata.assignmentId = ObjectId(metadata.assignmentId);
+    metadata.studentId = ObjectId(metadata.studentId);
 
-  const pageSize = 2;
-  offset = getPageOffset(page, count, pageSize);
+    const db = getDBReference();
+    const bucket = new GridFSBucket(db, { bucketName: 'submissions' });
+    const uploadStream = bucket.openUploadStream(
+      file.filename,
+      {metadata: metadata}
+    );
 
-  // TODO: Get page from collection using offset, pageSize, id and studentId
-  const results = [1, 5];
-
-  return results;
-}
-exports.getSubmissionsPageByStudent = getSubmissionsPageByStudent;
-
-async function insertNewSubmission(submission) {
-  // TODO: Mongo and file stuff
-  return 0;
+    fs.createReadStream(file.path)
+      .pipe(uploadStream)
+      .on('error', (err) => {
+        reject(err);
+      })
+      .on('finish', (result) => {
+        resolve(result._id);
+      });
+  });
 }
 exports.insertNewSubmission = insertNewSubmission;

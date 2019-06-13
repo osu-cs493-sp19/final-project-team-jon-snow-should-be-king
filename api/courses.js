@@ -102,7 +102,7 @@ router.get('/:id', async (req, res, next) => {
 router.patch('/:id', requireAuthentication, async (req, res, next) => {
   // NOTE: If it is a patch, do we need to worry about the schema?
   if (validateAgainstSchema(req.body, CourseSchema)) {
-    if (isAdmin(req.role) || validTeacherId(req.params.id, req.role, req.user)) {
+    if (isAdmin(req.role) || await validTeacherId(req.params.id, req.role, req.user)) {
       try {
         const id = req.params.id
         const updateSuccessful = await updateCourseById(id, req.body);
@@ -162,7 +162,7 @@ router.delete('/:id', requireAuthentication, async (req, res, next) => {
  *  Route to fetch students from a course
  */
 router.get('/:id/students', requireAuthentication, async (req, res, next) => {
-  if (isAdmin(req.role) || validTeacherId(req.params.id, req.role, req.user)) {
+  if (isAdmin(req.role) || await validTeacherId(req.params.id, req.role, req.user)) {
     try {
       const students = await getStudentsByCourseId(req.params.id);
       if (students) {
@@ -188,7 +188,7 @@ router.get('/:id/students', requireAuthentication, async (req, res, next) => {
 *  Route to update enrollment in a course
 */
 router.post('/:id/students', requireAuthentication, async (req, res, next) => {
-  if (isAdmin(req.role) || validTeacherId(req.params.id, req.role, req.user)) {
+  if (isAdmin(req.role) || await validTeacherId(req.params.id, req.role, req.user)) {
     if (req.body && req.body.add && req.body.remove) {
       try {
         const updateSuccessful = await updateStudentsByCourseId(req.params.id, req.body);
@@ -210,7 +210,7 @@ router.post('/:id/students', requireAuthentication, async (req, res, next) => {
     }
   }else{
     res.status(403).send({
-      error: "Entered credentials do not provide authorized access to this resouce"
+      error: "Entered credentials do not provide authorized access to this resource"
     });
   }
 });
@@ -219,7 +219,7 @@ router.post('/:id/students', requireAuthentication, async (req, res, next) => {
  *  Route to fetch a csv file of the students within a course
  */
  router.get('/:id/roster', requireAuthentication, async (req, res, next) => {
-   if (isAdmin(req.role) || validTeacherId(req.params.id, req.role, req.user)) {
+   if (isAdmin(req.role) || await validTeacherId(req.params.id, req.role, req.user)) {
      try {
        const csvfile = await getRosterByCourseId(req.params.id);
        if (csvfile) {

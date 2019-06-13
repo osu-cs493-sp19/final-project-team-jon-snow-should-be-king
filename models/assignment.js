@@ -1,3 +1,7 @@
+const { ObjectId } = require('mongodb');
+
+const { getDBReference } = require('../lib/mongo');
+const { extractValidFields } = require('../lib/validation');
 
 /*
 * Schema describing required/optional fields of an assignment object.
@@ -15,8 +19,14 @@ exports.AssignmentSchema = AssignmentSchema;
  * Inserts an assignment into the database 
  */
 async function insertNewAssignment(assignment) {
-  // TODO: Mongo
-  return 0;
+  assignment = extractValidFields(assignment, AssignmentSchema);
+  const db = getDBReference();
+  const collection = db.collection('assignments');
+
+  // TODO: Check that courseId is valid
+
+  const result = await collection.insertOne(assignment);
+  return result.insertedId;
 }
 exports.insertNewAssignment = insertNewAssignment;
 
@@ -24,13 +34,17 @@ exports.insertNewAssignment = insertNewAssignment;
  * Fetches an assignment from the database
  */
 async function getAssignmentById(id) {
-  // TODO: Mongo
-  return {
-    "courseId": id,
-    "title": "Assignment 3",
-    "points": 100,
-    "due": "2019-06-14T17:00:00-07:00"
-  };
+  const db = getDBReference();
+  const collection = db.collection('assignments');
+
+  if(!ObjectId.isValid(id)) {
+    return null;
+  } else {
+    const results = await collection
+      .find({ _id: new ObjectId(id) })
+      .toArray();
+    return results[0];
+  }
 }
 exports.getAssignmentById = getAssignmentById;
 
@@ -38,7 +52,25 @@ exports.getAssignmentById = getAssignmentById;
  * Updates an assignment in the database
  */
 async function updateAssignmentById(id, assignment) {
-  // TODO: Mongo
+  const db = getDBReference();
+  const collection = db.collection('assignments');
+
+  if(!ObjectId.isValid(id)) {
+    return false;
+  } else {
+    const updatedAssignment = await getAssignmentById(id);
+    Object.keys(assignment).forEach(
+      field => {
+        if (updatedAssignment[field] != assignment[field]) {
+          updatedAssignment[field] = assignment[field];
+        }
+      }
+    );
+    await collection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedAssignment }
+    );
+  }
   return true;
 }
 exports.updateAssignmentById = updateAssignmentById;
@@ -47,7 +79,20 @@ exports.updateAssignmentById = updateAssignmentById;
  * Deletes an assignment from the database
  */
 async function deleteAssignmentById(id) {
-  // TODO: Mongo
+  const db = getDBReference();
+  const collection = db.collection('assignments');
+  
+  if(!ObjectId.isValid(id)) {
+    return false;
+  } else {
+    const results = await collection
+      .find({_id: new ObjectId(id) })
+      .toArray();
+    if(results.length > 0) {
+      await collection.deleteOne({ _id: id });
+    }
+  }
+
   return true;
 }
 exports.deleteAssignmentById = deleteAssignmentById;
